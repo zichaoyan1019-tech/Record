@@ -1,0 +1,8 @@
+{
+  "name": "2SoulLog - AI Voice Journal",
+  "description": "Record your day with voice. AI analyzes your mood and tasks.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
