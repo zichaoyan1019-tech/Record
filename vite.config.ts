@@ -4,6 +4,8 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  // IMPORTANT: The base path must match your GitHub repository name "/record/"
+  base: '/record/',
   build: {
     outDir: 'dist',
     emptyOutDir: true,

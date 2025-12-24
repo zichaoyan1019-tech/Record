@@ -1,9 +1,9 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { getMonthDays, getWeekDayStart, formatDate, getMoodColor, MOOD_LABELS, MOOD_PALETTE } from '../utils';
 import { JournalEntry, TaskItem } from '../types';
 import { saveEntry } from '../services/storage';
-import { ChevronLeft, ChevronRight, Plus, CheckCircle2, ListStart, Calendar as CalendarIcon, Edit2, Trash2, X, Check, Archive, Smartphone, Share2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, CheckCircle2, ListStart, Calendar as CalendarIcon, Edit2, Trash2, X, Check, Archive, Smartphone, Share2, Settings, Key, AlertCircle } from 'lucide-react';
 
 interface CalendarViewProps {
   entries: JournalEntry[];
@@ -21,6 +21,27 @@ const CalendarView: React.FC<CalendarViewProps> = ({ entries, onSelectDate, onDa
 
   // QR Code Modal State
   const [showQR, setShowQR] = useState(false);
+  
+  // Settings/Key Modal State
+  const [showSettings, setShowSettings] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState("");
+  const [hasKey, setHasKey] = useState(false);
+
+  useEffect(() => {
+    // Check if key exists
+    const stored = localStorage.getItem("openai_api_key");
+    if (stored && stored.startsWith("sk-")) {
+        setHasKey(true);
+        setApiKeyInput(stored);
+    } else {
+        setHasKey(false);
+        // AUTO OPEN SETTINGS IF NO KEY (Delay slightly for UX)
+        const timer = setTimeout(() => {
+            setShowSettings(true);
+        }, 500);
+        return () => clearTimeout(timer);
+    }
+  }, []); // Run once on mount
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -125,6 +146,24 @@ const CalendarView: React.FC<CalendarViewProps> = ({ entries, onSelectDate, onDa
       setEditingTask(null);
   };
 
+  const saveApiKey = () => {
+      if (apiKeyInput.startsWith("sk-")) {
+          localStorage.setItem("openai_api_key", apiKeyInput);
+          setHasKey(true);
+          alert("API Key Saved!");
+          setShowSettings(false);
+      } else {
+          alert("Invalid API Key format (must start with sk-)");
+      }
+  };
+
+  const clearApiKey = () => {
+      localStorage.removeItem("openai_api_key");
+      setApiKeyInput("");
+      setHasKey(false);
+      alert("API Key Removed. Using default/demo mode.");
+  };
+
   const weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   // Current URL for QR Code
@@ -133,27 +172,51 @@ const CalendarView: React.FC<CalendarViewProps> = ({ entries, onSelectDate, onDa
   return (
     <div className="flex flex-col h-full bg-transparent transition-colors duration-700 relative z-10 pt-safe-top">
       {/* Header */}
-      <div className="flex items-center justify-between px-8 py-8">
+      <div className="flex items-center justify-between px-6 py-8">
         <div>
           <h1 className="text-3xl font-light text-gray-800 tracking-tight">{lang === 'en' ? 'Journal' : '我的生活'}</h1>
           <p className="text-gray-500 text-sm font-medium uppercase tracking-widest mt-1 opacity-80">{year} . {String(month + 1).padStart(2, '0')}</p>
         </div>
-        <div className="flex items-center space-x-1">
+        <div className="flex items-center space-x-2">
            {/* Install/Share Button */}
            <button 
              onClick={() => setShowQR(true)}
-             className="p-3 mr-2 hover:bg-black/5 rounded-full transition-colors active:scale-90 text-gray-600 hidden sm:flex" // Hide on mobile, show on desktop
+             className="p-3 bg-white/50 backdrop-blur-sm rounded-full shadow-sm border border-white/60 text-gray-600 hover:bg-white transition-all active:scale-90 hidden sm:flex"
              title="Install on Phone"
            >
               <Smartphone className="w-5 h-5" />
            </button>
 
-          <button onClick={() => changeMonth(-1)} className="p-3 hover:bg-black/5 rounded-full transition-colors active:scale-90">
-            <ChevronLeft className="w-5 h-5 text-gray-800" />
-          </button>
-          <button onClick={() => changeMonth(1)} className="p-3 hover:bg-black/5 rounded-full transition-colors active:scale-90">
-            <ChevronRight className="w-5 h-5 text-gray-800" />
-          </button>
+           {/* Settings Button - HIGH VISIBILITY */}
+           <button 
+             onClick={() => setShowSettings(true)}
+             className={`flex items-center space-x-2 px-3 py-2 rounded-full transition-all active:scale-95 border ${
+                 !hasKey 
+                 ? 'bg-white text-indigo-600 shadow-md border-indigo-100 animate-pulse' 
+                 : 'bg-white/50 text-gray-600 shadow-sm border-white/60 hover:bg-white'
+             }`}
+             title="Settings / API Key"
+           >
+              <div className="relative">
+                  <Settings className="w-5 h-5" />
+                  {!hasKey && (
+                      <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                      </span>
+                  )}
+              </div>
+              {!hasKey && <span className="text-xs font-bold whitespace-nowrap">{lang === 'en' ? 'Set Key' : '配置 Key'}</span>}
+           </button>
+
+          <div className="flex items-center bg-white/50 rounded-full p-1 border border-white/60 shadow-sm ml-2">
+              <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-white rounded-full transition-colors active:scale-90">
+                <ChevronLeft className="w-4 h-4 text-gray-800" />
+              </button>
+              <button onClick={() => changeMonth(1)} className="p-2 hover:bg-white rounded-full transition-colors active:scale-90">
+                <ChevronRight className="w-4 h-4 text-gray-800" />
+              </button>
+          </div>
         </div>
       </div>
 
@@ -377,6 +440,70 @@ const CalendarView: React.FC<CalendarViewProps> = ({ entries, onSelectDate, onDa
                       </div>
                   </div>
               </div>
+          </div>
+      )}
+
+      {/* --- SETTINGS / API KEY MODAL --- */}
+      {showSettings && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+             <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-sm p-6 flex flex-col relative">
+                <button 
+                   onClick={() => setShowSettings(false)}
+                   className="absolute top-4 right-4 p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+                >
+                   <X className="w-5 h-5 text-gray-600" />
+                </button>
+                
+                <h3 className="text-xl font-bold text-gray-900 mt-2 mb-2 flex items-center">
+                    <Key className="w-5 h-5 mr-2 text-indigo-500" />
+                    OpenAI API Configuration
+                </h3>
+                
+                {!hasKey && (
+                   <div className="bg-amber-50 text-amber-800 p-3 rounded-xl text-xs mb-4 flex items-start border border-amber-100">
+                      <AlertCircle className="w-4 h-4 mr-2 shrink-0 mt-0.5" />
+                      <span>
+                        {lang === 'en' 
+                          ? 'Missing API Key. AI features (Summary, Mood, Voice) are disabled.'
+                          : '检测到未配置 Key。AI 功能（语音转文字、情绪分析）暂不可用。'
+                        }
+                      </span>
+                   </div>
+                )}
+
+                <p className="text-xs text-gray-500 mb-6 leading-relaxed">
+                    {lang === 'en' 
+                        ? 'Enter your own OpenAI API Key (starts with sk-...). The key is stored securely in your browser\'s local storage.' 
+                        : '请输入您的 OpenAI API Key (以 sk- 开头)。密钥将安全存储在您的浏览器本地缓存中，不会上传到我们的服务器。'
+                    }
+                </p>
+                
+                <div className="space-y-4">
+                    <input 
+                        type="text" 
+                        value={apiKeyInput}
+                        onChange={(e) => setApiKeyInput(e.target.value.trim())}
+                        placeholder="sk-proj-..."
+                        className="w-full p-4 bg-gray-50 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none font-mono text-xs text-gray-600 break-all"
+                    />
+
+                    <button 
+                        onClick={saveApiKey}
+                        className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all"
+                    >
+                        {lang === 'en' ? 'Save API Key' : '保存密钥'}
+                    </button>
+                    
+                    {apiKeyInput && (
+                         <button 
+                            onClick={clearApiKey}
+                            className="w-full py-3 bg-red-50 text-red-500 font-bold rounded-xl hover:bg-red-100 active:scale-95 transition-all"
+                        >
+                            {lang === 'en' ? 'Clear Key' : '清除密钥'}
+                        </button>
+                    )}
+                </div>
+             </div>
           </div>
       )}
 
